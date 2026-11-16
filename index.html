@@ -124,6 +124,20 @@
 
   footer { padding: 36px 0 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); margin-top: 24px; }
   footer .wrap { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; }
+  .signup { margin: 8px auto 18px; max-width: 460px; display: flex; flex-direction: column; gap: 14px; text-align: left; }
+  .signup label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 15px; }
+  .signup label span { font-weight: 400; opacity: .8; }
+  .signup input, .signup textarea { font: inherit; font-weight: 400; font-size: 17px; padding: 13px 14px; border-radius: 12px; border: 2px solid transparent; background: #fff; color: #1E2A22; width: 100%; box-sizing: border-box; }
+  .signup textarea { resize: vertical; min-height: 84px; }
+  .signup input:focus, .signup textarea:focus { outline: none; border-color: var(--orange); }
+  .signup .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+  .btn.light { background: #fff; color: #2F7D4F; font-size: 18px; padding: 16px 26px; cursor: pointer; }
+  .btn.light:disabled { opacity: .7; cursor: default; }
+  .signup .msg { margin: 0; font-weight: 600; min-height: 0; }
+  .signup .msg:empty { display: none; }
+  .signup .msg.err { background: var(--orange-soft); color: var(--text); padding: 10px 14px; border-radius: 12px; }
+  .signup .fine { margin: 0; font-size: 14px; opacity: .85; }
+  .signup.done { text-align: center; }
 </style>
 </head>
 <body>
@@ -268,13 +282,22 @@
     <div class="wrap">
       <div class="band center">
         <h2>Kom igång</h2>
-        <p>StegAppen testas just nu på iPhone via Apples TestFlight. Det är gratis att vara med.</p>
+        <p>Vill du vara med och testa och utveckla StegAppen innan den släpps? Appen testas just nu på iPhone via Apples TestFlight, och det är gratis att vara med.</p>
         <div class="steps">
-          <div class="step"><div class="n">1</div><h3>Be om en inbjudan</h3><p>Fråga någon som redan har appen – eller den som skickade dig hit – om en inbjudan till testet.</p></div>
+          <div class="step"><div class="n">1</div><h3>Anmäl dig</h3><p>Fyll i formuläret nedan med ditt namn och e-postadressen till ditt Apple-ID.</p></div>
           <div class="step"><div class="n">2</div><h3>Installera TestFlight</h3><p>Hämta Apples gratisapp TestFlight och öppna inbjudan på din iPhone.</p></div>
           <div class="step"><div class="n">3</div><h3>Börja gå</h3><p>Ge appen tillgång till stegräknaren, sätt ditt mål – och lägg till dina vänner.</p></div>
         </div>
-        <p>App Store kommer senare. Följ med redan nu och var med och forma appen!</p>
+        <form class="signup" id="anmal" novalidate>
+          <input type="text" name="hemsida" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <label>Namn<input name="namn" required maxlength="80" autocomplete="name" placeholder="För- och efternamn"></label>
+          <label>E-post till ditt Apple-ID<input name="epost" type="email" required maxlength="254" autocomplete="email" inputmode="email" placeholder="namn@exempel.se"></label>
+          <label>Något du vill berätta? <span>(valfritt)</span><textarea name="meddelande" maxlength="1000" rows="3" placeholder="T.ex. vilka funktioner du är mest nyfiken på"></textarea></label>
+          <button class="btn light" type="submit">Anmäl mig som testare</button>
+          <p class="msg" role="status" aria-live="polite"></p>
+          <p class="fine">Vi använder bara namnet och adressen för att bjuda in dig till testet. Ingen annan ser dem.</p>
+        </form>
+        <p>Du får en inbjudan från TestFlight när du är tillagd. Berätta gärna vad du tycker – dina idéer och buggar formar appen. App Store kommer senare.</p>
       </div>
     </div>
   </section>
@@ -301,5 +324,42 @@
   </div>
 </footer>
 
+<script>
+(function () {
+  // Publik (publishable) nyckel – samma som i appen. Tabellen tar bara emot nya anmälningar och går inte att läsa.
+  var API = "https://qakfrmfikyivjgmvjoda.supabase.co/rest/v1/testanmalningar";
+  var KEY = "sb_publishable_6jpqlNFNDgvZHiwgSIkpLQ_JWBoPD54";
+  var form = document.getElementById("anmal");
+  if (!form) return;
+  var msg = form.querySelector(".msg");
+  var btn = form.querySelector("button");
+  function show(text, err) { msg.textContent = text; msg.className = "msg" + (err ? " err" : ""); }
+  function thanks(text) {
+    form.classList.add("done");
+    form.innerHTML = '<p style="font-size:40px;margin:0">🎉</p><h3 style="margin:0;color:inherit;font-size:22px">Tack för din anmälan!</h3><p style="margin:0"></p>';
+    form.lastChild.textContent = text;
+  }
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (form.hemsida.value) { thanks("Vi hör av oss."); return; }
+    var namn = form.namn.value.trim(), epost = form.epost.value.trim(), meddelande = form.meddelande.value.trim();
+    if (!namn) { show("Skriv ditt namn.", true); form.namn.focus(); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(epost)) { show("Kontrollera e-postadressen.", true); form.epost.focus(); return; }
+    btn.disabled = true; show("Skickar …");
+    fetch(API, {
+      method: "POST",
+      headers: { apikey: KEY, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ namn: namn, epost: epost, meddelande: meddelande })
+    }).then(function (r) {
+      if (r.ok) thanks("Du får en inbjudan från TestFlight till " + epost + " när du är tillagd. Håll utkik i inkorgen!");
+      else if (r.status === 409) thanks("Du är redan anmäld med " + epost + ". Inbjudan kommer så snart du är tillagd.");
+      else throw new Error(r.status);
+    }).catch(function () {
+      btn.disabled = false;
+      show("Det gick inte att skicka just nu. Försök igen om en stund.", true);
+    });
+  });
+})();
+</script>
 </body>
 </html>
